@@ -2,6 +2,14 @@
 #coding : utf8
 
 import netsnmp
+'''
+fastsnmpy classes for 'netsnmp extension module'
+    Copyright (c) 2010-2016 Ajay Divakaran
+    'fastsnmpy' is free to use . This includes the classes and modules of fastsnmpy as well as any examples and code contained in the package. 
+    Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), 
+    to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, 
+    distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so.
+'''
 from fastsnmpy import SnmpSession
 import json
 from time import time
@@ -31,6 +39,10 @@ for interface in interfaces:
 
 
 def counter_overflow(bytes,last_bytes):
+	'''
+	Works for 64 bit counter_overflow
+	ifHCInOctets & ifHCOutOctets
+	'''
 	max_bytes = 18446744073709600000;#the value is 2^64
 	if bytes < last_bytes : bytes += max_bytes 
 	return bytes
