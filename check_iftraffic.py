@@ -5,10 +5,14 @@ from fastsnmpy import SnmpSession
 '''
 fastsnmpy classes for 'netsnmp extension module'
     Copyright (c) 2010-2016 Ajay Divakaran
-    'fastsnmpy' is free to use . This includes the classes and modules of fastsnmpy as well as any examples and code contained in the package. 
-    Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), 
-    to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, 
-    distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so.
+    'fastsnmpy' is free to use . This includes the classes and modules of
+    fastsnmpy as well as any examples and code contained in the package.
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so.
 '''
 import json
 from time import time
@@ -94,14 +98,16 @@ def compare_data(now):
                 timelaps = now['time'] - previous['time']
                 now['ifaces'][iid]['out_ave'] = av(out_b, prev_out_b, timelaps)
                 now['ifaces'][iid]['in_ave'] = av(in_b, prev_in_b, timelaps)
-                now['ifaces'][iid]['inUsage'] = round(
-                    float(now['ifaces'][iid]['in_ave']) * 100 /
-                    int(now['ifaces'][iid]['ifSpeed']), 2)
-                now['ifaces'][iid]['outUsage'] = round(
-                    float(now['ifaces'][iid]['out_ave']) * 100 /
-                    int(now['ifaces'][iid]['ifSpeed']), 2)
+                try:
+                    now['ifaces'][iid]['inUsage'] = round(
+                        float(now['ifaces'][iid]['in_ave']) * 100 /
+                        int(now['ifaces'][iid]['ifSpeed']), 2)
+                    now['ifaces'][iid]['outUsage'] = round(
+                        float(now['ifaces'][iid]['out_ave']) * 100 /
+                        int(now['ifaces'][iid]['ifSpeed']), 2)
+                except ValueError as e:
+                    pass
             except KeyError as e:
-                print 'Error : ' + str(e) + ' ' + iid + ':' + now['ifaces'][iid]['ifDescr']
                 pass
 
     previous['time'] = now['time']
@@ -119,33 +125,36 @@ def build_alert(now):
             inUsage, outUsage, in_ave, out_ave, ifAlias = (
                 now['ifaces'][iid][k] for k in (
                     'inUsage', 'outUsage', 'in_ave', 'out_ave', 'ifAlias'))
-        except KeyError as e:
-            print 'Error : ' + str(e) + ' ' + now['ifaces'][iid]['ifDescr']
-        if inUsage > warning and inUsage < critical:
-            alert[now['ifaces'][iid]['ifDescr']] = (
-                'SNMP WARNING : INusage=' + str(inUsage) + '%% -' + ifAlias)
-        if inUsage > critical:
-            alert[now['ifaces'][iid]['ifDescr']] = (
-                'SNMP CRITICAL : INusage=' + str(inUsage) + '%% -' + ifAlias)
-        if outUsage > warning and outUsage < critical:
-            alert[now['ifaces'][iid]['ifDescr']] = (
-                'SNMP WARNING : OUTusage=' + str(outUsage) + '%% -' + ifAlias)
-        if outUsage > critical:
-            alert[now['ifaces'][iid]['ifDescr']] = (
-                'SNMP CRITICAL : OUTusage=' + str(outUsage) + '%% -' + ifAlias)
-        result += (
-            now['ifaces'][iid]['ifDescr'] + ': Average IN=' +
-            str(humanize.naturalsize(in_ave)) + '(' + str(inUsage) +
-            '%) Average OUT=' + str(humanize.naturalsize(out_ave)) +
-            '(' + str(outUsage) + '%)\n')
 
-        desc = now['ifaces'][iid]['ifDescr'].replace('/', '_')
-        perfdata += (
-            desc + '.outBandwidth=' + str(out_ave) + 'B ' + desc +
-            '.inBandwidth=' + str(in_ave) + 'B ')
-        perfdata += (
-            desc + '.outUsage=' + str(outUsage) + '% ' + desc +
-            '.inUsage=' + str(inUsage) + '% ')
+            if inUsage > warning and inUsage < critical:
+                alert[now['ifaces'][iid]['ifDescr']] = (
+                    'SNMP WARNING : INusage=' + str(inUsage) + '%% -' + ifAlias)
+            if inUsage > critical:
+                alert[now['ifaces'][iid]['ifDescr']] = (
+                    'SNMP CRITICAL : INusage=' + str(inUsage) + '%% -' + ifAlias)
+            if outUsage > warning and outUsage < critical:
+                alert[now['ifaces'][iid]['ifDescr']] = (
+                    'SNMP WARNING : OUTusage=' + str(outUsage) + '%% -' + ifAlias)
+            if outUsage > critical:
+                alert[now['ifaces'][iid]['ifDescr']] = (
+                    'SNMP CRITICAL : OUTusage=' + str(outUsage) + '%% -' + ifAlias)
+            result += (
+                now['ifaces'][iid]['ifDescr'] + ': Average IN=' +
+                str(humanize.naturalsize(in_ave)) + '(' + str(inUsage) +
+                '%) Average OUT=' + str(humanize.naturalsize(out_ave)) +
+                '(' + str(outUsage) + '%)\n')
+
+            desc = now['ifaces'][iid]['ifDescr'].replace('/', '_')
+            perfdata += (
+                desc + '.outBandwidth=' + str(out_ave) + 'B ' + desc +
+                '.inBandwidth=' + str(in_ave) + 'B ')
+            perfdata += (
+                desc + '.outUsage=' + str(outUsage) + '% ' + desc +
+                '.inUsage=' + str(inUsage) + '% ')
+
+        except KeyError as e:
+            print 'Unknown, SNMP TIMEOUT. Error: ' + str(e)
+            sys.exit(3)
 
     return result, alert, perfdata
 
@@ -176,7 +185,8 @@ if __name__ == '__main__':
     community = [args.community][0]
 
     snmp = snmpWalk()
-    now = compare_data(build_check_dict(snmp))
+    snmp = build_check_dict(snmp)
+    now = compare_data(snmp)
 
     result, alert, perfdata = build_alert(now)
 
